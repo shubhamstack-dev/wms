@@ -143,8 +143,10 @@ svg.dzsvg.draw,svg.dzsvg.rack{cursor:crosshair}
 .login-head .logo-img,.login-head .logo{border-radius:14px;margin-bottom:6px}
 .login-head h1{margin:0;font-size:21px;font-weight:750;letter-spacing:-.01em}
 .login-head p{margin:0;color:var(--dim);font-size:14px;font-weight:550}
-.login-form{width:100%;background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent);
+.login-form{width:100%;background:var(--surface);border:1px solid var(--border);border-top:0;
   border-radius:12px;padding:24px 24px 26px;box-shadow:0 10px 30px rgba(16,24,40,.08)}
+.login-form{position:relative;overflow:hidden}
+.login-form::before{content:"";position:absolute;inset:0 0 auto;height:4px;background:linear-gradient(90deg,#E2592A,#473F86)}
 .login-form h2{margin:0 0 4px;font-size:17px}
 .login-form>.sub{margin:0 0 6px}
 .login-form .lf{margin-top:14px}

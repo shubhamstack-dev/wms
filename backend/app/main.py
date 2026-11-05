@@ -88,4 +88,7 @@ if os.path.isdir(_dist):
 
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str):
+        f = os.path.realpath(os.path.join(_dist, path))
+        if path and f.startswith(os.path.realpath(_dist) + os.sep) and os.path.isfile(f):
+            return FileResponse(f)      # logo, favicons and other files from public/
         return FileResponse(os.path.join(_dist, "index.html"))

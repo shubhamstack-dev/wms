@@ -1,4 +1,4 @@
-﻿# On every push to main:
+# On every push to main:
 #   1. backend tests (against a throwaway MySQL) + frontend build
 #   2. if green, SSH into the VPS and rebuild WMS
 name: Deploy
