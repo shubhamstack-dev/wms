@@ -1,4 +1,4 @@
-# On every push to main:
+﻿# On every push to main:
 #   1. backend tests (against a throwaway MySQL) + frontend build
 #   2. if green, SSH into the VPS and rebuild WMS
 name: Deploy
@@ -37,7 +37,7 @@ jobs:
           TEST_DATABASE_URL: mysql+pymysql://wms:wms_pass@127.0.0.1:3306/wms_test?charset=utf8mb4
         run: |
           pip install -r requirements-dev.txt
-          pytest -q
+          python -m pytest -q
 
       - uses: actions/setup-node@v4
         with:
