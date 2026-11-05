@@ -30,6 +30,13 @@ export const Status = ({ s }) => <Pill tone={TONE[s]}>{label(s)}</Pill>
 export const Kpi = ({ value, label: l, color }) => (
   <div className="kpi"><div className="v" style={color ? { color } : null}>{value}</div><div className="l">{l}</div></div>
 )
+/** Aequm mark from public/aequm-mark.png; falls back to a lettered tile if the file is missing */
+export function Logo({ size = 28 }) {
+  const [ok, setOk] = useState(true)
+  return ok
+    ? <img className="logo-img" src="/aequm-mark.png?v=1" alt="Aequm" width={size} height={size} onError={() => setOk(false)} />
+    : <span className="logo" style={{ width: size, height: size, fontSize: size * 0.5 }} aria-label="Aequm">A</span>
+}
 export const Empty = ({ children }) => <div className="empty">{children}</div>
 export const Note = ({ children, tone }) => <div className="note" style={tone ? { borderColor: `var(--${tone})` } : null}>{children}</div>
 

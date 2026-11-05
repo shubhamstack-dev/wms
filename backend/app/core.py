@@ -1,11 +1,12 @@
 """Shared helpers: roles, business errors, serialisation, numbering, audit."""
 from datetime import date, datetime
-from fastapi import Header, HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from . import models as m
+from .auth import AppUser, current_user
 
-# ── roles (header-based for now; swap for real authentication — see README) ──
+# ── roles: taken from the logged-in user (see auth.py) ──
 ROLES = {
     "OPERATOR": {"confirm", "count", "move"},
     "SUPERVISOR": {"confirm", "count", "move", "create", "release", "adjust", "master"},
@@ -13,8 +14,8 @@ ROLES = {
 }
 
 
-def get_role(x_role: str = Header(default="OPERATOR")) -> str:
-    return x_role.upper() if x_role.upper() in ROLES else "OPERATOR"
+def get_role(user: AppUser = Depends(current_user)) -> str:
+    return user.role if user.role in ROLES else "OPERATOR"
 
 
 def require(role: str, action: str):

@@ -31,6 +31,9 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://wms:${MYSQL_PASSWORD:-wms_pass}@mysql:3306/wms?charset=utf8mb4
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      AUTH_SECRET: ${AUTH_SECRET:-dev-only-secret-change-me}
+      AUTH_HOURS: ${AUTH_HOURS:-12}
+      ALLOW_RESET: ${ALLOW_RESET:-true}
     depends_on:
       mysql:
         condition: service_healthy

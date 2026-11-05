@@ -1,7 +1,10 @@
-// Thin client for the FastAPI middleware. The role travels in the X-Role header (replace with real auth — see README).
+// Thin client for the FastAPI middleware. The login token travels in the Authorization header.
 const BASE = import.meta.env.VITE_API_BASE || '/api'
-let role = localStorage.getItem('wms.role') || 'ADMIN'
-export const setApiRole = r => { role = r }
+let token = localStorage.getItem('wms.token') || ''
+let onLoggedOut = () => {}
+export const setToken = t => { token = t || ''; t ? localStorage.setItem('wms.token', t) : localStorage.removeItem('wms.token') }
+export const hasToken = () => !!token
+export const onUnauthorized = fn => { onLoggedOut = fn }
 
 function message(data, res) {
   let d = data && data.detail !== undefined ? data.detail : res.statusText
@@ -10,15 +13,18 @@ function message(data, res) {
   return typeof d === 'string' ? d : JSON.stringify(d)
 }
 
+const headers = extra => (token ? { ...extra, Authorization: 'Bearer ' + token } : { ...extra })
+
 async function req(method, path, body) {
   const res = await fetch(BASE + path, {
     method,
-    headers: { 'Content-Type': 'application/json', 'X-Role': role },
+    headers: headers({ 'Content-Type': 'application/json' }),
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   const txt = await res.text()
   let data = null
   try { data = txt ? JSON.parse(txt) : null } catch { data = txt }
+  if (res.status === 401 && token && !path.startsWith('/auth/')) { setToken(''); onLoggedOut() }
   if (!res.ok) throw new Error(message(data, res))
   return data
 }
@@ -30,7 +36,8 @@ export const api = {
   patch: (p, b) => req('PATCH', p, b),
   del: p => req('DELETE', p),
   async download(p, filename) {
-    const res = await fetch(BASE + p, { headers: { 'X-Role': role } })
+    const res = await fetch(BASE + p, { headers: headers({}) })
+    if (res.status === 401) { setToken(''); onLoggedOut() }
     if (!res.ok) throw new Error(res.statusText)
     const blob = await res.blob()
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename })

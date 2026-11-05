@@ -146,8 +146,9 @@ Business-rule violations return **400** with a readable `detail`. Invalid input 
 
 ## 7. Before production
 
-- **Authentication.** The role (OPERATOR / SUPERVISOR / ADMIN) is currently sent in an `X-Role` header chosen in the UI. That is fine for testing but **not secure**. Replace `core.get_role` with real authentication, for example OIDC / Azure AD / Keycloak, and derive the role from the token.
-- **Admin endpoints.** `admin/load-demo` and `admin/import-legacy?replace=true` wipe the database. Disable them or protect them strongly in production.
+- **Login.** Users log in with a username and password; the role comes from the user (Users tab). The first visit creates the administrator. Set a random `AUTH_SECRET`.
+- **Admin endpoints.** `admin/load-demo` and `admin/import-legacy?replace=true` wipe the database. Set `ALLOW_RESET=false` in production.
+- **Empty the data.** `python -m app.clear_data --yes` deletes all warehouse data and keeps the users.
 - **Secrets and backups.** Change the default MySQL passwords, restrict `CORS_ORIGINS` and set up MySQL backups.
 - **Schema changes.** For changes after go-live, add Alembic migrations (`database/schema.sql` is generated from `models.py`).
 

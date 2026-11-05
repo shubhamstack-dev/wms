@@ -10,13 +10,33 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.seed import reset_and_seed
 
-ADMIN, OP = {"X-Role": "ADMIN"}, {"X-Role": "OPERATOR"}
+from app import auth
+from sqlalchemy import delete
+from app.db import SessionLocal
+
+# filled with real login tokens by the fixture; every request without its own
+# headers goes out as the operator
+ADMIN, OP = {}, {}
+
+
+def _user(db, name, role):
+    u = auth.AppUser(username=name, password_hash=auth.hash_password("secret-pass"), role=role, active=True)
+    db.add(u)
+    db.commit()
+    return u
 
 
 @pytest.fixture()
 def c():
     reset_and_seed()
+    auth.create_tables()
+    with SessionLocal() as db:
+        db.execute(delete(auth.AppUser))
+        db.commit()
+        ADMIN.clear(); ADMIN["Authorization"] = "Bearer " + auth.make_token(_user(db, "admin", "ADMIN"))
+        OP.clear(); OP["Authorization"] = "Bearer " + auth.make_token(_user(db, "op", "OPERATOR"))
     with TestClient(app) as client:
+        client.headers.update(OP)
         yield client
 
 
@@ -220,3 +240,31 @@ def test_import_from_html_app(c):
     ok(c.post(f"/api/warehouses/{w1}/waves", json={"order_ids": [o["id"] for o in orders]}, headers=ADMIN))
     new = ok(c.post(f"/api/warehouses/{w1}/orders", json={"lines": [{"material_id": mat(c, "RM-303")["id"], "qty": 1}]}, headers=ADMIN))
     assert new["number"] == "SO-0004"                     # number range continues after imported numbers
+
+
+def test_login_and_users():
+    auth.create_tables()
+    with SessionLocal() as db:
+        db.execute(delete(auth.AppUser))
+        db.commit()
+    with TestClient(app) as anon:
+        assert anon.get("/api/warehouses").status_code == 401           # not logged in
+        assert anon.get("/api/health").status_code == 200
+        assert ok(anon.get("/api/auth/status"))["needs_setup"] is True
+        tok = ok(anon.post("/api/auth/setup", json={"username": "Boss", "password": "longpassword"}))
+        assert tok["user"] == {"id": tok["user"]["id"], "username": "boss", "role": "ADMIN", "active": True}
+        assert anon.post("/api/auth/setup", json={"username": "other", "password": "longpassword"}).status_code == 409
+        assert anon.post("/api/auth/login", json={"username": "boss", "password": "wrong"}).status_code == 401
+        adm = {"Authorization": "Bearer " + ok(anon.post("/api/auth/login",
+                                                         json={"username": "boss", "password": "longpassword"}))["token"]}
+        assert anon.get("/api/warehouses", headers=adm).status_code == 200
+        assert anon.get("/api/warehouses", headers={"Authorization": "Bearer junk.sig"}).status_code == 401
+        op = ok(anon.post("/api/users", headers=adm, json={"username": "ravi", "password": "12345678", "role": "OPERATOR"}))
+        oph = {"Authorization": "Bearer " + ok(anon.post("/api/auth/login",
+                                                         json={"username": "ravi", "password": "12345678"}))["token"]}
+        assert anon.get("/api/users", headers=oph).status_code == 403
+        assert anon.post("/api/admin/load-demo", headers=oph).status_code == 403
+        assert anon.put(f"/api/users/{tok['user']['id']}", headers=adm, json={"role": "OPERATOR"}).status_code == 400
+        ok(anon.put(f"/api/users/{op['id']}", headers=adm, json={"active": False}))
+        assert anon.get("/api/warehouses", headers=oph).status_code == 401   # deactivated user is out at once
+        ok(anon.delete(f"/api/users/{op['id']}", headers=adm))
