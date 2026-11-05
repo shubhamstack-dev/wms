@@ -1,0 +1,48 @@
+# Local:  docker compose up --build   ->  http://localhost:8080
+#         (docker-compose.override.yml is picked up automatically and also opens
+#          MySQL on :3306 and the API docs on :8000)
+# Server: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#         (no override file, so only the web container is reachable, and only via Caddy)
+name: wms
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: wms-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: wms
+      MYSQL_USER: wms
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-wms_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-change_me_root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build: ./backend
+    container_name: wms-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://wms:${MYSQL_PASSWORD:-wms_pass}@mysql:3306/wms?charset=utf8mb4
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: wms-web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${APP_PORT:-8080}:80"
+
+volumes:
+  mysql_data:
